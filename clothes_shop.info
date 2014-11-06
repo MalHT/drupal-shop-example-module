@@ -1,0 +1,4 @@
+name = Clothes Shop
+description = Provides e-commerce functionality for a clothes shop, including clothing size management and currency conversion
+core = 7.x
+package = Custom

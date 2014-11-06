@@ -1,0 +1,336 @@
+<?php 
+// ----------------------------
+// MENU SETUP
+// ----------------------------
+
+function clothes_shop_menu() {
+  $items = array();
+  
+  $items['shop'] = array(
+    'title' => 'Shop',
+    'description' => 'Shop form',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('clothes_shop_form'),
+    'access callback' => TRUE,
+  );
+  
+  return $items;
+}
+
+// ----------------------------
+// MENU ALTER
+// ----------------------------
+
+function clothes_shop_menu_alter(&$items) {
+  $items['node/edit/%node'] = $items['node/%node/edit'];
+  unset($items['node/%node/edit']);
+  $items['node/edit/%node']['page arguments'] = array(2);
+  //dpm($items);
+}
+
+// ----------------------------
+// CUSTOM THERMOMETER BLOCK
+// ----------------------------
+
+function clothes_shop_block_info() {
+  $blocks['thermometer'] = array(
+    'info' => t('Charity Thermometer'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  return $blocks;
+}
+
+function clothes_shop_block_view($delta = '') {
+  switch ($delta) {
+    case 'thermometer':
+    $block['subject'] = t('Charity thermometer');
+    $block['content'] = _clothes_shop_thermometer_contents(variable_get('block_thermometer_goal_value'), variable_get('block_thermometer_total_value'));
+    break;
+  }
+  return $block;
+}
+
+function clothes_shop_block_configure($delta = '') {
+  switch ($delta) {
+    case 'thermometer':
+    $form['block-thermometer-config-goal'] = array(
+      '#type' => 'textfield',
+      '#title' => 'Goal value',
+      '#description' => 'The goal amount of money to raise.',
+      '#default_value' => variable_get('block_thermometer_goal_value', 0),
+    );
+    $form['block-thermometer-config-total'] = array(
+      '#type' => 'textfield',
+      '#title' => 'Total value',
+      '#description' => 'The total amount of money that has been raised.',
+      '#default_value' => variable_get('block_thermometer_total_value', 0),
+    );
+    return $form;
+    break;
+  }
+}
+
+function clothes_shop_block_save($delta = '', $edit = array()) {
+  switch ($delta) {
+    case 'thermometer':
+      //dpm($edit);
+      variable_set('block_thermometer_goal_value', $edit['block-thermometer-config-goal']);
+      variable_set('block_thermometer_total_value', $edit['block-thermometer-config-total']);
+    break;
+  }
+}
+
+function _clothes_shop_thermometer_contents($goal_value, $total_value) {
+  $contents = array(
+    '#markup' => '<img border="0" src="http://thermometer.fund-raising-ideas-center.com/thermometer.php?currency=dollar&goal=' . $goal_value . '&current=' . $total_value . '&color=red&size=large">',
+  );
+  return $contents;
+}
+
+// ----------------------------
+// SEARCH FORM ALTER
+// ----------------------------
+
+function clothes_shop_form_search_block_form_alter(&$form, &$form_state) {
+	$form['type_select'] = array(
+    '#type' => 'radios',
+    '#title' => t('Search in'),
+    '#options' => array('node' => t('node'),'user' => t('user')),
+    '#default_value' => 'node',
+	);
+	
+	array_push($form['#submit'], 'clothes_shop_custom_submission');
+}
+
+function clothes_shop_custom_submission($form, &$form_state) {
+	// All that needs to happen is to redefine the form redirect action - Drupal search will interpret the path.
+
+	$form_state['redirect'] = 'search/' . $form_state['values']['type_select'] . '/' . $form_state['values']['search_block_form'];
+}
+
+// TIL: PHP can declare variables by reference using &$var
+
+// ----------------------------
+// FORM
+// ----------------------------
+
+// @todo : reduce database calls for access to clothes types list and sizes
+function clothes_shop_form($form, &$form_state) {
+  if(!isset($form_state['page'])) { $form_state['page'] = 0; }
+  
+  $form = array();
+  
+  switch ($form_state['page']) {
+    
+    case 0:
+      $form['amount'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Price (£)'),
+      '#size' => 10,
+      '#maxlength' => 10,
+      '#required' => TRUE,
+      '#ajax' => array(
+        'callback' => '_clothes_shop_currency_display',
+        'wrapper' => 'currency-display',
+        ),
+      );
+
+      $form['currency'] = array(
+        '#type' => 'select',
+        '#title' => t('Currency'),
+        '#options' => _clothes_shop_currency_list(),
+        '#ajax' => array(
+          'callback' => '_clothes_shop_currency_display',
+          'wrapper' => 'currency-display',
+        ),
+      );
+      
+      $display_converted_value = FALSE;
+      if (isset($form_state['values']['currency']) && isset($form_state['values']['amount'])) {
+          $display_converted_value = TRUE;
+          //dpm($form_state['values']);
+      }
+      
+      $form['converted_value'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Converted Price',
+        '#prefix' => '<div id="currency-display">',
+        '#value' => $display_converted_value ? _clothes_shop_currency_convert($form_state['values']['currency'], $form_state['values']['amount']) : 'n/a',
+        '#suffix' => '</div>',
+        '#disabled' => TRUE,
+      );
+      
+      $form['next'] = array(
+        '#type' => 'submit',
+        '#value' => t('Next'),
+      );
+      break;
+
+    case 1:
+      $form['clothes_type'] = array(
+      '#type' => 'radios',
+      '#title' => t('Clothing Type'),
+      '#options' => _clothes_shop_clothes_list(),
+      '#required' => TRUE,
+      '#ajax' => array(
+        'callback' => '_clothes_shop_sizes_display',
+        'wrapper' => 'clothes-sizes',
+      ),
+      );
+      
+      // This shouldn't be rendered until the clothes type is selected.     
+      //$clothes_type =  ? $form_state['values']['clothes_type'] : 'default';
+      $display_size = FALSE;
+
+      if (isset($form_state['values']['clothes_type'])) {
+          $display_size = TRUE;
+      }
+      
+      $form['clothes_size'] = array (
+        '#type' => $display_size ? 'radios' : 'value',
+        '#title' => t('Size'),
+        '#options' => $display_size ? _clothes_shop_sizes_list($form_state['values']['clothes_type'] + 1) : array(),
+        '#prefix' => '<div id="clothes-sizes">',
+        '#suffix' => '</div>',
+      );
+
+      $form['next'] = array(
+        '#type' => 'submit',
+        '#value' => t('Finish'),
+      );
+      break;  
+  
+    case 2:
+      $stored_values = $form_state['stored_values'];
+      //dpm($form_state);
+      
+      $clothes_types = _clothes_shop_clothes_list();
+      $clothes_sizes = _clothes_shop_sizes_list($stored_values[1]['clothes_type'] + 1);
+      
+      //dpm($clothes_sizes);
+      //dpm($clothes_types);
+      
+      $clothes_type = $clothes_types[$stored_values[1]['clothes_type']];
+      $clothes_size = $clothes_sizes[$stored_values[1]['clothes_size']];
+      
+      $form['final_display'] = array(
+        '#markup' => 'You converted ' . $stored_values[0]['amount'] . ' GBP into ' . $stored_values[0]['converted_value'] . ' ' . $stored_values[0]['currency'] . ' then selected ' . $clothes_type . ' in size ' . $clothes_size,
+      );
+      break;
+  }
+  
+  return $form;
+}
+
+// AJAX Callback for clothes sizes disply
+function _clothes_shop_sizes_display($form, &$form_state) {
+  return $form['clothes_size'];
+}
+
+// Database query for possible clothes types
+function _clothes_shop_clothes_list() {
+  $list = array();
+  $result = db_query('SELECT name FROM clothes_type');
+  
+  foreach ($result as $record) {
+    array_push($list, $record->name);
+  }
+  return $list;
+}
+
+// Database query for possible clothes sizes
+function _clothes_shop_sizes_list($clothes_type) {
+  $list = array();
+  $result = db_query('SELECT size FROM clothes_sizes WHERE type_id = :clothes_type', array(':clothes_type' => $clothes_type));
+  
+  foreach ($result as $record) {
+    array_push($list, $record->size);
+  }
+  return $list;
+}
+
+// Build list of available currencies
+function _clothes_shop_currency_list() {
+  $list = array(
+    "USD" => t("US Dollar (USD)"),
+    "EUR" => t("Euro (EUR)"),
+    "INR" => t("Indian Rupee (INR)"),
+    "BDT" => t("Bangladeshi Taka (BDT)"),
+    "JPY" => t("Japanese Yen (JPY)"),
+    "VND" => t("Vietnamese Dong (VND)"),
+    );
+  return $list;
+}
+
+// AJAX Callback for currency conversion display
+function _clothes_shop_currency_display($form, &$form_state) {
+  return $form['converted_value'];
+}
+
+// Convert $amount of GBP into $currency
+function _clothes_shop_currency_convert($currency, $amount) {
+  $rate = _clothes_shop_conversion_rate('GBP',$currency);
+  $rate = json_decode($rate, true);
+  $keys = array_keys($rate);
+  $rate = $rate[$keys[0]]['val'];
+    
+  return round($amount * $rate,2);
+}
+
+// Get conversion rate $from, $to
+function _clothes_shop_conversion_rate($from, $to) {
+  $rate = file_get_contents('http://www.freecurrencyconverterapi.com/api/v2/convert?q=' . $from . '_' . $to . '&compact=y');
+  return $rate;
+}
+
+function clothes_shop_form_validate($form, &$form_state) {
+  
+}
+
+function clothes_shop_form_submit($form, &$form_state) {
+  $form_state['stored_values'][$form_state['page']] = $form_state['values'];
+  
+  if($form_state['page'] < 2) {
+    $form_state['page']++;
+    
+  } else {
+    $form_state['page'] = 2;
+
+  }
+  $form_state['rebuild'] = TRUE;
+}
+
+// ----------------------------
+// SIZES TABLE
+// ----------------------------
+
+function clothes_shop_node_view($node) {
+  // Add sizes table
+
+  if($node->title == "Clothes sizes") {
+    $header = array('Type', 'Size');
+    $rows = array();
+    $clothes_types = _clothes_shop_clothes_list();
+    for ($i = 0; $i < count($clothes_types); $i++) {
+      //var_dump($clothes_types[$i]);
+      $sizes = _clothes_shop_sizes_list($i+1);
+      //var_dump( $sizes);
+      foreach ($sizes as $size) {
+        array_push($rows, array('data' => array($clothes_types[$i], $size), 'class' => array('sizes-table-' . $clothes_types[$i])));
+      }
+    }
+   
+    //var_dump($rows);
+    
+    
+    $node->content['clothes-sizes-table'] = array(
+      '#markup' => theme('table', array('header' => $header,
+                         'rows' => $rows )),
+      );
+    
+    $node->content['clothes-sizes-table-hide'] = array(
+      '#markup' => '<a href="#" id="sizes-table-hide-link">Toggle display</a>',
+      );
+    drupal_add_js(drupal_get_path('module', 'clothes_shop') . '/clothes_shop_table.js');
+  }
+}
