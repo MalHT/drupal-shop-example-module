@@ -63,6 +63,9 @@ function _clothes_shop_default_insert() {
 
 /**
  * Creates a default node.
+ * 
+ * Required to create the 'clothes sizes' page which will get a table
+ * injected into it later.
  */
 function _clothes_shop_default_node() {
   $node = new stdClass();

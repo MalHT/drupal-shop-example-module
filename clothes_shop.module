@@ -33,6 +33,8 @@ function clothes_shop_menu() {
 
 /**
  * Implements hook_menu_alter().
+ * 
+ * Replaces the path node/edit/%node with node/%node/edit.
  */
 function clothes_shop_menu_alter(&$items) {
   $items['node/edit/%node'] = $items['node/%node/edit'];
@@ -125,6 +127,8 @@ function _clothes_shop_thermometer_contents($goal_value, $total_value) {
 
 /**
  * Implements hook_form_FORM_ID_alter().
+ * 
+ * Alters the search form block to add node/user options.
  */
 function clothes_shop_form_search_block_form_alter(&$form, &$form_state) {
   $form['type_select'] = array(
