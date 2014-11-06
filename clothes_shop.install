@@ -2,9 +2,9 @@
 
 function clothes_shop_schema() {
   $schema['clothes_type'] = array(
-    'description' => t('Table for storing clothes types'),
-    'fields' => array (
-      'clothes_id' => array (
+    'description' => 'Table for storing clothes types',
+    'fields' => array(
+      'clothes_id' => array(
         'description' => 'Unique clothing type ID',
         'type' => 'serial',
         'unsigned' => TRUE,
@@ -20,9 +20,9 @@ function clothes_shop_schema() {
     'primary key' => array('clothes_id'),
   );
   $schema['clothes_sizes'] = array(
-    'description' => t('Table for storing clothes sizes'),
-    'fields' => array (
-      'type_id' => array (
+    'description' => 'Table for storing clothes sizes',
+    'fields' => array(
+      'type_id' => array(
         'description' => 'Clothing type ID (matches clothes_type.clothes_id)',
         'type' => 'int',
         'unsigned' => 'true',
@@ -41,14 +41,14 @@ function clothes_shop_schema() {
 
 function _clothes_shop_default_insert() {
   // A bit ugly :P
-  db_query("INSERT INTO clothes_type (name) VALUES ('Shirts')");
-  db_query("INSERT INTO clothes_type (name) VALUES ('Jeans')");
-  db_query("INSERT INTO clothes_sizes (type_id, size) VALUES (1, 'small')");
-  db_query("INSERT INTO clothes_sizes (type_id, size) VALUES (1, 'medium')");
-  db_query("INSERT INTO clothes_sizes (type_id, size) VALUES (1, 'large')");
-  db_query("INSERT INTO clothes_sizes (type_id, size) VALUES (2, '32\"')");
-  db_query("INSERT INTO clothes_sizes (type_id, size) VALUES (2, '34\"')");
-  db_query("INSERT INTO clothes_sizes (type_id, size) VALUES (2, '36\"')");
+  db_query("INSERT INTO {clothes_type} (name) VALUES ('Shirts')");
+  db_query("INSERT INTO {clothes_type} (name) VALUES ('Jeans')");
+  db_query("INSERT INTO {clothes_sizes} (type_id, size) VALUES (1, 'small')");
+  db_query("INSERT INTO {clothes_sizes} (type_id, size) VALUES (1, 'medium')");
+  db_query("INSERT INTO {clothes_sizes} (type_id, size) VALUES (1, 'large')");
+  db_query("INSERT INTO {clothes_sizes} (type_id, size) VALUES (2, '32\"')");
+  db_query("INSERT INTO {clothes_sizes} (type_id, size) VALUES (2, '34\"')");
+  db_query("INSERT INTO {clothes_sizes} (type_id, size) VALUES (2, '36\"')");
 }
 
 function _clothes_shop_default_node() {
