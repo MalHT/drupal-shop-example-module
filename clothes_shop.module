@@ -1,8 +1,18 @@
 <?php 
+/**
+ * @file
+ * Main logic for the Clothes Shop module.
+ * 
+ * Contains custom e-commerce themed additions to Drupal.
+ */
+
 // ----------------------------
 // MENU SETUP
 // ----------------------------
 
+/**
+ * Implements hook_menu().
+ */
 function clothes_shop_menu() {
   $items = array();
   
@@ -21,6 +31,9 @@ function clothes_shop_menu() {
 // MENU ALTER
 // ----------------------------
 
+/**
+ * Implements hook_menu_alter().
+ */
 function clothes_shop_menu_alter(&$items) {
   $items['node/edit/%node'] = $items['node/%node/edit'];
   unset($items['node/%node/edit']);
@@ -32,6 +45,9 @@ function clothes_shop_menu_alter(&$items) {
 // CUSTOM THERMOMETER BLOCK
 // ----------------------------
 
+/**
+ * Implements hook_block_info().
+ */
 function clothes_shop_block_info() {
   $blocks['thermometer'] = array(
     'info' => t('Charity Thermometer'),
@@ -40,6 +56,9 @@ function clothes_shop_block_info() {
   return $blocks;
 }
 
+/**
+ * Implements hook_block_view().
+ */
 function clothes_shop_block_view($delta = '') {
   switch ($delta) {
     case 'thermometer':
@@ -50,6 +69,9 @@ function clothes_shop_block_view($delta = '') {
   return $block;
 }
 
+/**
+ * Implements hook_block_configure().
+ */
 function clothes_shop_block_configure($delta = '') {
   switch ($delta) {
     case 'thermometer':
@@ -71,6 +93,9 @@ function clothes_shop_block_configure($delta = '') {
   }
 }
 
+/**
+ * Implements hook_block_save().
+ */
 function clothes_shop_block_save($delta = '', $edit = array()) {
   switch ($delta) {
     case 'thermometer':
@@ -81,6 +106,12 @@ function clothes_shop_block_save($delta = '', $edit = array()) {
   }
 }
 
+/**
+ * Produces contents of 'thermometer' block.
+ * 
+ * Takes goal value and total value to pass to the
+ * thermometer render page
+ */
 function _clothes_shop_thermometer_contents($goal_value, $total_value) {
   $contents = array(
     '#markup' => '<img border="0" src="http://thermometer.fund-raising-ideas-center.com/thermometer.php?currency=dollar&goal=' . $goal_value . '&current=' . $total_value . '&color=red&size=large">',
@@ -92,6 +123,9 @@ function _clothes_shop_thermometer_contents($goal_value, $total_value) {
 // SEARCH FORM ALTER
 // ----------------------------
 
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
 function clothes_shop_form_search_block_form_alter(&$form, &$form_state) {
   $form['type_select'] = array(
     '#type' => 'radios',
@@ -100,22 +134,26 @@ function clothes_shop_form_search_block_form_alter(&$form, &$form_state) {
     '#default_value' => 'node',
   );
   
-  array_push($form['#submit'], 'clothes_shop_custom_submission');
+  array_push($form['#submit'], '_clothes_shop_custom_submission');
 }
-
-function clothes_shop_custom_submission($form, &$form_state) {
+/**
+ * Custom submission handler for block search form.
+ */
+function _clothes_shop_custom_submission($form, &$form_state) {
   // All that needs to happen is to redefine the form redirect action - Drupal search will interpret the path.
 
   $form_state['redirect'] = 'search/' . $form_state['values']['type_select'] . '/' . $form_state['values']['search_block_form'];
 }
-
-// TIL: PHP can declare variables by reference using &$var
 
 // ----------------------------
 // FORM
 // ----------------------------
 
 // @todo : reduce database calls for access to clothes types list and sizes
+
+/**
+ * Implements hook_form().
+ */
 function clothes_shop_form($form, &$form_state) {
   if (!isset($form_state['page'])) {
     $form_state['page'] = 0; 
@@ -182,7 +220,7 @@ function clothes_shop_form($form, &$form_state) {
       );
       
       // This shouldn't be rendered until the clothes type is selected.     
-      //$clothes_type =  ? $form_state['values']['clothes_type'] : 'default';
+      // $clothes_type =  ? $form_state['values']['clothes_type'] : 'default';
       $display_size = FALSE;
 
       if (isset($form_state['values']['clothes_type'])) {
@@ -225,12 +263,16 @@ function clothes_shop_form($form, &$form_state) {
   return $form;
 }
 
-// AJAX Callback for clothes sizes display
+/**
+ * AJAX Callback for clothes sizes display.
+ */
 function _clothes_shop_sizes_display($form, &$form_state) {
   return $form['clothes_size'];
 }
 
-// Database query for possible clothes types
+/**
+ * Database query for possible clothes types.
+ */
 function _clothes_shop_clothes_list() {
   $list = array();
   $result = db_query('SELECT name FROM {clothes_type}');
@@ -241,7 +283,9 @@ function _clothes_shop_clothes_list() {
   return $list;
 }
 
-// Database query for possible clothes sizes
+/**
+ * Database query for possible clothes sizes.
+ */
 function _clothes_shop_sizes_list($clothes_type) {
   $list = array();
   $result = db_query('SELECT size FROM {clothes_sizes} WHERE type_id = :clothes_type', array(':clothes_type' => $clothes_type));
@@ -252,7 +296,9 @@ function _clothes_shop_sizes_list($clothes_type) {
   return $list;
 }
 
-// Build list of available currencies
+/**
+ * Build list of available currencies.
+ */
 function _clothes_shop_currency_list() {
   $list = array(
     "USD" => t("US Dollar (USD)"),
@@ -265,12 +311,16 @@ function _clothes_shop_currency_list() {
   return $list;
 }
 
-// AJAX Callback for currency conversion display
+/**
+ * AJAX Callback for currency conversion display.
+ */
 function _clothes_shop_currency_display($form, &$form_state) {
   return $form['converted_value'];
 }
 
-// Convert $amount of GBP into $currency
+/**
+ * Convert $amount of GBP into $currency.
+ */
 function _clothes_shop_currency_convert($currency, $amount) {
   $rate = _clothes_shop_conversion_rate('GBP', $currency);
   $rate = json_decode($rate, TRUE);
@@ -280,16 +330,24 @@ function _clothes_shop_currency_convert($currency, $amount) {
   return round($amount * $rate, 2);
 }
 
-// Get conversion rate $from, $to
+/**
+ * Get conversion rate $from, $to using API.
+ */
 function _clothes_shop_conversion_rate($from, $to) {
   $rate = file_get_contents('http://www.freecurrencyconverterapi.com/api/v2/convert?q=' . $from . '_' . $to . '&compact=y');
   return $rate;
 }
 
+/**
+ * Implements hook_form_validate().
+ */
 function clothes_shop_form_validate($form, &$form_state) {
   
 }
 
+/**
+ * Implements hook_form_submit().
+ */
 function clothes_shop_form_submit($form, &$form_state) {
   $form_state['stored_values'][$form_state['page']] = $form_state['values'];
   
@@ -308,6 +366,11 @@ function clothes_shop_form_submit($form, &$form_state) {
 // SIZES TABLE
 // ----------------------------
 
+/**
+ * Implements hook_node_view().
+ * 
+ * Adds a sizes table to a specific node.
+ */
 function clothes_shop_node_view($node) {
   // Add sizes table
 

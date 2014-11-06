@@ -1,3 +1,8 @@
+/**
+ * @file
+ * Implements hiding of rows in the clothes sizes table.
+ */
+
 function hideTable() {
   if(jQuery('.sizes-table-Shirts').is(":visible") && jQuery('.sizes-table-Jeans').is(":visible")) {
     jQuery(".sizes-table-Jeans").hide();
